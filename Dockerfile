@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+
 # Micromouse Simulator — headless ROS 2 Humble + Pygame, streamed via noVNC.
 # Builds cleanly on both linux/amd64 and linux/arm64/v8 (Raspberry Pi / Apple Silicon hosts).
 

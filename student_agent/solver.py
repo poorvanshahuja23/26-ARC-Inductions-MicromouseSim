@@ -1,7 +1,6 @@
 """
 Write your own solver in the scan_callback function
 """
-
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -10,9 +9,9 @@ from geometry_msgs.msg import Twist
 # ==========================================
 # These four parameters MUST add up to exactly 30!
 # ==========================================
-TOP_SPEED = 8
-ACCELARATION = 7
-TURN_SPEED = 5
+TOP_SPEED = 6
+ACCELERATION = 6
+TURN_SPEED = 8
 SENSOR_RANGE = 10
 
 class StudentSolver(Node):
@@ -35,45 +34,39 @@ class StudentSolver(Node):
         )
         
         self.get_logger().info("Student Solver Node initialized successfully.")
-        self.get_logger().info(f"Stats -> Speed: {TOP_SPEED}, Accel: {ACCELARATION}, Turn: {TURN_SPEED}, Range: {SENSOR_RANGE}")
+        self.get_logger().info(f"Stats -> Speed: {TOP_SPEED}, Accel: {ACCELERATION}, Turn: {TURN_SPEED}, Range: {SENSOR_RANGE}")
 
     def scan_callback(self, msg):
-        """
-        This function runs every time a new sensor reading is received (at 20 Hz).
-        msg.ranges contains the distances:
-        msg.ranges[0] -> Left ray distance
-        msg.ranges[1] -> Front ray distance
-        msg.ranges[2] -> Right ray distance
-        """
         d_left = msg.ranges[0]
         d_front = msg.ranges[1]
         d_right = msg.ranges[2]
         
         cmd = Twist()
         
-        #-------- DEMO LOGIC, REMOVE THIS AND WRITE YOUR OWN ---------
-        # 1. Front is blocked -> Pivot strictly in place (do not move forward!)
-        # Increased threshold to 0.65 so it has room to spin without its 0.15 radius clipping the front wall
+        # 1. IMMEDIATE THREAT: Front wall approaching
+        # If the wall is closer than 0.65, it will kill forward momentum instantly and spin right.
         if d_front < 0.65:
             cmd.linear.x = 0.0
-            cmd.angular.z = -1.5  # Spin clockwise (right)
+            cmd.angular.z = -2.5  # Sharp, aggressive right pivot
             
-        # 2. Left side is open -> Curve around the corner
-        elif d_left > 0.8:
-            cmd.linear.x = 0.3
-            cmd.angular.z = 1.2   # Turn left
+        # 2. OPPORTUNITY: Left gap detected
+        # The moment the left wall vanishes, it will begin arcing left into the new corridor.
+        elif d_left > 0.85:
+            # We move slightly forward while turning to ensure the chassis clears the inner corner
+            cmd.linear.x = 0.6
+            cmd.angular.z = 1.5   # Smooth left curve
             
-        # 3. Wall hugging -> P-Controller
+        # 3. CORRIDOR CRUISING: Safe to drive
+        # We have a wall on our left and open space ahead. 
         else:
-            cmd.linear.x = 0.5
+            cmd.linear.x = 3.0    # High speed straightaway drive
             
-            # The cell is 1.0 units wide. Perfect center is 0.5.
+            # P-Controller: Mathematically locks the robot exactly 0.5 units away from the left wall
             target_distance = 0.5 
             error = d_left - target_distance
             
-            # Multiply error by a gain to steer back to the center
-            cmd.angular.z = error * 3.0
-        #-----------------------------------------------------------------
+            # If it drifts right, it steers left. If it drifts left, it steers right. 
+            cmd.angular.z = error * 4.0 
             
         self.cmd_pub.publish(cmd)
 
